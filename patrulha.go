@@ -13,57 +13,72 @@ type Posicao struct {
     X, Y int
 }
 
-var (
-    canalPatrulhaMov   = make(chan MovimentoPatrulheiro)
-    canalPatrulhaAck   = make(chan Posicao)
-    canalPatrulhaInit  = make(chan Posicao)
-    canalMorte         = make(chan bool)
-)
+type PatrulheiroState struct {
+    posX, posY int
+    under      Elemento
+    movChan    chan MovimentoPatrulheiro
+    ackChan    chan Posicao
+}
 
-// Goroutine que gera movimento aleatório contínuo
-func iniciarPatrulheiro(x, y int) {
+var canalMorte = make(chan bool)
+
+// Inicia um patrulheiro com canais próprios
+func iniciarPatrulheiro(x, y int, jogo *Jogo) {
+    state := &PatrulheiroState{
+        posX:    x,
+        posY:    y,
+        under:   Vazio, // começa sobre chão vazio
+        movChan: make(chan MovimentoPatrulheiro),
+        ackChan: make(chan Posicao),
+    }
+
+    
+
+    // Goroutine de movimento aleatório
     go func() {
-        canalPatrulhaInit <- Posicao{X: x, Y: y}
-
         direcoes := []struct{ dx, dy int }{
             {1, 0}, {-1, 0}, {0, 1}, {0, -1},
         }
-
         for {
             dir := direcoes[rand.Intn(len(direcoes))]
-            canalPatrulhaMov <- MovimentoPatrulheiro{DX: dir.dx, DY: dir.dy}
-            <-canalPatrulhaAck // só para sincronizar
+            state.movChan <- MovimentoPatrulheiro{DX: dir.dx, DY: dir.dy}
+            <-state.ackChan
             time.Sleep(400 * time.Millisecond)
         }
     }()
-}
 
-// Processador que aplica movimentos e verifica proximidade
-func executarProcessadorPatrulha(jogo *Jogo) {
-    var cur Posicao
-    under := Vazio
+    // Goroutine processadora (dona das alterações no mapa para este patrulheiro)
+    go func() {
+        for {
+            mov := <-state.movChan
+            nx, ny := state.posX+mov.DX, state.posY+mov.DY
 
-    cur = <-canalPatrulhaInit
+            if jogoPodeMoverPara(jogo, nx, ny) {
+                // Restaura o que estava antes na posição atual
+                jogo.Mapa[state.posY][state.posX] = state.under
 
-    for {
-        mov := <-canalPatrulhaMov
-        nx, ny := cur.X+mov.DX, cur.Y+mov.DY
+                // Guarda o que existe no destino
+                nextUnder := jogo.Mapa[ny][nx]
 
-        if jogoPodeMoverPara(jogo, nx, ny) {
-            jogo.Mapa[cur.Y][cur.X] = under
-            nextUnder := jogo.Mapa[ny][nx]
-            jogo.Mapa[ny][nx] = Patrulheiro
-            cur = Posicao{X: nx, Y: ny}
-            under = nextUnder
-            interfaceDesenharJogo(jogo)
+                // Coloca o patrulheiro no destino
+                jogo.Mapa[ny][nx] = Patrulheiro
+
+                // Atualiza estado
+                state.posX, state.posY = nx, ny
+                state.under = nextUnder
+
+                interfaceDesenharJogo(jogo)
+            }
+
+            // Confirma posição
+            state.ackChan <- Posicao{X: state.posX, Y: state.posY}
+
+            // Verifica proximidade do jogador
+            if dist2(state.posX, state.posY, jogo.PosX, jogo.PosY) <= 4 {
+                canalMorte <- true
+            }
         }
-
-        canalPatrulhaAck <- cur
-
-        if dist2(cur.X, cur.Y, jogo.PosX, jogo.PosY) <= 4 {
-            canalMorte <- true
-        }
-    }
+    }()
 }
 
 // Distância ao quadrado (evita sqrt)

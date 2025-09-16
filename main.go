@@ -23,8 +23,6 @@ func main() {
 		panic(err)
 	}
 
-	go executarProcessadorPatrulha(&jogo)
-
 	// Modificação: Goroutine para detectar morte
     go func() {
 		for range canalMorte {

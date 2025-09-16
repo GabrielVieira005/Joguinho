@@ -6,11 +6,14 @@
 package main
 
 import (
+	"sync"
+
 	"github.com/nsf/termbox-go"
 )
 
 // Define um tipo Cor para encapsuladar as cores do termbox
 type Cor = termbox.Attribute
+var mu sync.Mutex
 
 // Definições de cores utilizadas no jogo
 const (
