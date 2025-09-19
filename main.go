@@ -4,6 +4,7 @@ package main
 import (
 	"os"
 	"time"
+	"math/rand"//Usado para teletransporte (buraco temporal)
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 		panic(err)
 	}
 
-	// Modificação: Goroutine para detectar morte
+	// Modificação: Goroutine para detectar morte por patrulheiro
     go func() {
 		for range canalMorte {
 			jogo.StatusMsg = "Você foi pego pelo patrulheiro!"
@@ -31,6 +32,31 @@ func main() {
 			time.Sleep(2 * time.Second)
 			os.Exit(0)
 		}
+    }()
+
+	// Modificação: Goroutine para detectar queda no buraco
+	go func() {
+        for range canalQueda {
+            jogo.StatusMsg = "Você caiu em um buraco temporal!"
+            interfaceDesenharJogo(&jogo)
+            time.Sleep(1 * time.Second)
+            
+            // Teletransporta jogador para posição aleatória válida
+            for tentativas := 0; tentativas < 100; tentativas++ {
+                newX := rand.Intn(len(jogo.Mapa[0]))
+                newY := rand.Intn(len(jogo.Mapa))
+                
+                if jogoPodeMoverPara(&jogo, newX, newY) {
+                    jogo.PosX, jogo.PosY = newX, newY
+                    jogo.StatusMsg = "Você foi teletransportado para outro local!"
+                    break
+                }
+            }
+            
+            // Limpa a mensagem após um tempo
+            time.Sleep(2 * time.Second)
+            jogo.StatusMsg = ""
+        }
     }()
 
 	// Desenha o estado inicial do jogo

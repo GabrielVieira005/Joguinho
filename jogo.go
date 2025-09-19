@@ -30,6 +30,7 @@ var (
 	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
 	Patrulheiro = Elemento{'⚉', CorAmarelo, CorPadrao, true}
+	BuracoVisivel = Elemento{'●', CorVermelho, CorPadrao, false}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -65,7 +66,10 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
 			case Patrulheiro.simbolo://Modificação: iniciar patrulheiro
 				e=Vazio
-				iniciarPatrulheiro(x,y, jogo)
+				iniciarPatrulheiro(x, y, jogo)
+			case '●': // ADICIONE ESTAS LINHAS - Buraco temporal
+				e = Vazio
+				iniciarBuraco(x, y, jogo)
 			}
 			linhaElems = append(linhaElems, e)
 		}

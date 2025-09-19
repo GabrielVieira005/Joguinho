@@ -6,14 +6,14 @@
 package main
 
 import (
-	"sync"
+	
 
 	"github.com/nsf/termbox-go"
 )
 
 // Define um tipo Cor para encapsuladar as cores do termbox
 type Cor = termbox.Attribute
-var mu sync.Mutex
+
 
 // Definições de cores utilizadas no jogo
 const (
@@ -33,16 +33,52 @@ type EventoTeclado struct {
 	Tecla rune   // Tecla pressionada, usada no caso de movimento
 }
 
+// Modificação: Comando para renderização thread-safe
+type ComandoRender struct {
+	Dados    *Jogo
+	Resposta chan bool
+}
+//Modificação: Canal de comandos de renderização
+var renderChan = make(chan ComandoRender, 10)
+
 // Inicializa a interface gráfica usando termbox
 func interfaceIniciar() {
 	if err := termbox.Init(); err != nil {
 		panic(err)
 	}
+	//Modificação: Inicia o controlador de interface, evita condição de corrida
+	go interfaceControlador()
 }
 
 // Encerra o uso da interface termbox
 func interfaceFinalizar() {
 	termbox.Close()
+}
+
+// Modificação: Controlador de renderização - processa todas as operações de desenho sequencialmente
+func interfaceControlador() {
+	for cmd := range renderChan {
+		interfaceLimparTela()
+
+		// Desenha todos os elementos do mapa
+		for y, linha := range cmd.Dados.Mapa {
+			for x, elem := range linha {
+				interfaceDesenharElemento(x, y, elem)
+			}
+		}
+
+		// Desenha o personagem sobre o mapa
+		interfaceDesenharElemento(cmd.Dados.PosX, cmd.Dados.PosY, Personagem)
+
+		// Desenha a barra de status
+		interfaceDesenharBarraDeStatus(cmd.Dados)
+
+		// Força a atualização do terminal
+		interfaceAtualizarTela()
+		
+		// Confirma que o desenho foi concluído
+		cmd.Resposta <- true
+	}
 }
 
 // Lê um evento do teclado e o traduz para um EventoTeclado
@@ -60,25 +96,14 @@ func interfaceLerEventoTeclado() EventoTeclado {
 	return EventoTeclado{Tipo: "mover", Tecla: ev.Ch}
 }
 
-// Renderiza todo o estado atual do jogo na tela
+// Modificação: Renderiza todo o estado atual do jogo na tela de forma thread-safe
 func interfaceDesenharJogo(jogo *Jogo) {
-	interfaceLimparTela()
-
-	// Desenha todos os elementos do mapa
-	for y, linha := range jogo.Mapa {
-		for x, elem := range linha {
-			interfaceDesenharElemento(x, y, elem)
-		}
+	resposta := make(chan bool)
+	renderChan <- ComandoRender{
+		Dados:    jogo,
+		Resposta: resposta,
 	}
-
-	// Desenha o personagem sobre o mapa
-	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)
-
-	// Desenha a barra de status
-	interfaceDesenharBarraDeStatus(jogo)
-
-	// Força a atualização do terminal
-	interfaceAtualizarTela()
+	<-resposta // Aguarda conclusão do desenho
 }
 
 // Limpa a tela do terminal
