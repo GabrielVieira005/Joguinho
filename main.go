@@ -39,7 +39,7 @@ func main() {
         for range canalQueda {
             jogo.StatusMsg = "Você caiu em um buraco temporal!"
             interfaceDesenharJogo(&jogo)
-            time.Sleep(1 * time.Second)
+            
             
             // Teletransporta jogador para posição aleatória válida
             for tentativas := 0; tentativas < 100; tentativas++ {
