@@ -6,25 +6,24 @@
 package main
 
 import (
-	
-
 	"github.com/nsf/termbox-go"
 )
 
 // Define um tipo Cor para encapsuladar as cores do termbox
 type Cor = termbox.Attribute
 
-
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao     Cor = termbox.ColorDefault
-	CorCinzaEscuro    = termbox.ColorDarkGray
-	CorVermelho       = termbox.ColorRed
-	CorVerde          = termbox.ColorGreen
-	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede    = termbox.ColorDarkGray
-	CorTexto          = termbox.ColorDarkGray
-	CorAmarelo        = termbox.ColorYellow //Adicionado (cor do patrulheiro)
+	CorPadrao      Cor = termbox.ColorDefault
+	CorCinzaEscuro     = termbox.ColorDarkGray
+	CorVermelho        = termbox.ColorRed
+	CorVerde           = termbox.ColorGreen
+	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede     = termbox.ColorDarkGray
+	CorTexto           = termbox.ColorDarkGray
+	CorAmarelo         = termbox.ColorYellow //Adicionado (cor do patrulheiro)
+	CorCiano           = termbox.ColorCyan
+	CorMagenta         = termbox.ColorMagenta
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -38,7 +37,8 @@ type ComandoRender struct {
 	Dados    *Jogo
 	Resposta chan bool
 }
-//Modificação: Canal de comandos de renderização
+
+// Modificação: Canal de comandos de renderização
 var renderChan = make(chan ComandoRender, 10)
 
 // Inicializa a interface gráfica usando termbox
@@ -75,7 +75,7 @@ func interfaceControlador() {
 
 		// Força a atualização do terminal
 		interfaceAtualizarTela()
-		
+
 		// Confirma que o desenho foi concluído
 		cmd.Resposta <- true
 	}
@@ -134,4 +134,3 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 		termbox.SetCell(i, len(jogo.Mapa)+3, c, CorTexto, CorPadrao)
 	}
 }
-

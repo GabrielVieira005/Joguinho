@@ -3,34 +3,38 @@ package main
 
 import (
 	"bufio"
+	"math/rand"
 	"os"
+	"time"
 )
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	simbolo   rune
-	cor       Cor
-	corFundo  Cor
-	tangivel  bool // Indica se o elemento bloqueia passagem
+	simbolo  rune
+	cor      Cor
+	corFundo Cor
+	tangivel bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
-	Mapa            [][]Elemento // grade 2D representando o mapa
-	PosX, PosY      int          // posição atual do personagem
-	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
-	StatusMsg       string       // mensagem para a barra de status
+	Mapa           [][]Elemento // grade 2D representando o mapa
+	PosX, PosY     int          // posição atual do personagem
+	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
+	StatusMsg      string       // mensagem para a barra de status
+	PresoAte       time.Time    // se não zero, personagem está preso até esse instante
 }
 
 // Elementos visuais do jogo
 var (
-	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
-	Patrulheiro = Elemento{'⚉', CorAmarelo, CorPadrao, true}
+	Personagem    = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
+	Inimigo       = Elemento{'☠', CorVermelho, CorPadrao, true}
+	Parede        = Elemento{'▤', CorParede, CorFundoParede, true}
+	Vegetacao     = Elemento{'♣', CorVerde, CorPadrao, false}
+	Vazio         = Elemento{' ', CorPadrao, CorPadrao, false}
+	Patrulheiro   = Elemento{'⚉', CorAmarelo, CorPadrao, true}
 	BuracoVisivel = Elemento{'●', CorVermelho, CorPadrao, false}
+	Armadilha     = Elemento{'^', CorMagenta, CorPadrao, false}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -39,6 +43,12 @@ func jogoNovo() Jogo {
 	// pois o jogo começa com o personagem em uma posição vazia
 	return Jogo{UltimoVisitado: Vazio}
 }
+
+// Canal para armadilha temporizada
+var canalArmadilha = make(chan bool)
+
+// Canal para exclusão mútua (mutex por canal)
+var jogoMutex = make(chan struct{}, 1)
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
 func jogoCarregarMapa(nome string, jogo *Jogo) error {
@@ -64,12 +74,15 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				e = Vegetacao
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
-			case Patrulheiro.simbolo://Modificação: iniciar patrulheiro
-				e=Vazio
-				iniciarPatrulheiro(x, y, jogo)
+			case Patrulheiro.simbolo: //Modificação: iniciar patrulheiro
+				e = Vazio
+				iniciarPatrulheiroAsync(x, y, jogo)
 			case '●': // ADICIONE ESTAS LINHAS - Buraco temporal
 				e = Vazio
 				iniciarBuraco(x, y, jogo)
+			case '^': // Armadilha temporizada
+				e = Vazio // <-- Corrija aqui: nunca desenhe ^ diretamente
+				iniciarArmadilha(x, y, jogo)
 			}
 			linhaElems = append(linhaElems, e)
 		}
@@ -84,6 +97,8 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 
 // Verifica se o personagem pode se mover para a posição (x, y)
 func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
+	<-jogoMutex
+	defer func() { jogoMutex <- struct{}{} }()
 	// Verifica se a coordenada Y está dentro dos limites verticais do mapa
 	if y < 0 || y >= len(jogo.Mapa) {
 		return false
@@ -105,12 +120,63 @@ func jogoPodeMoverPara(jogo *Jogo, x, y int) bool {
 
 // Move um elemento para a nova posição
 func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
+	<-jogoMutex
+	defer func() { jogoMutex <- struct{}{} }()
 	nx, ny := x+dx, y+dy
 
 	// Obtem elemento atual na posição
 	elemento := jogo.Mapa[y][x] // guarda o conteúdo atual da posição
 
-	jogo.Mapa[y][x] = jogo.UltimoVisitado     // restaura o conteúdo anterior
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]   // guarda o conteúdo atual da nova posição
-	jogo.Mapa[ny][nx] = elemento              // move o elemento
+	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
+	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
+	jogo.Mapa[ny][nx] = elemento            // move o elemento
+}
+
+// Inicia a goroutine do patrulheiro em uma posição aleatória
+func iniciarPatrulheiro(x, y int, jogo *Jogo) {
+	go func() {
+		for {
+			dx, dy := 0, 0
+			// Move aleatoriamente: -1, 0 ou 1
+			switch rand.Intn(4) {
+			case 0:
+				dx = -1
+			case 1:
+				dx = 1
+			case 2:
+				dy = -1
+			case 3:
+				dy = 1
+			}
+
+			// Verifica nova posição
+			nx, ny := x+dx, y+dy
+			<-jogoMutex
+			if jogoPodeMoverPara(jogo, nx, ny) {
+				jogoMoverElemento(jogo, x, y, dx, dy)
+				x, y = nx, ny
+			}
+			jogoMutex <- struct{}{}
+			time.Sleep(500 * time.Millisecond) // Aguarda meio segundo
+		}
+	}()
+}
+
+// Inicia a goroutine do buraco temporal
+// (implementação removida para evitar conflito de declaração; veja buraco.go)
+
+// Inicia a goroutine do buraco temporal
+// (implementação removida para evitar conflito de declaração; veja buraco.go)
+
+// Mapa global para canais dos portais ativos
+var portalChannels = make(map[[2]int]chan bool)
+
+// Registra canal do portal na posição (x, y)
+func registerPortalChannel(x, y int, ch chan bool) {
+	portalChannels[[2]int{x, y}] = ch
+}
+
+// Remove canal do portal na posição (x, y)
+func unregisterPortalChannel(x, y int) {
+	delete(portalChannels, [2]int{x, y})
 }

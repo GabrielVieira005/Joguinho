@@ -23,7 +23,7 @@ type PatrulheiroState struct {
 var canalMorte = make(chan bool)
 
 // Inicia um patrulheiro com canais próprios
-func iniciarPatrulheiro(x, y int, jogo *Jogo) {
+func iniciarPatrulheiroAsync(x, y int, jogo *Jogo) {
     state := &PatrulheiroState{
         posX:    x,
         posY:    y,
