@@ -34,7 +34,7 @@ func iniciarPatrulheiro(x, y int, jogo *Jogo) {
 
     
 
-    // Goroutine de movimento aleatório
+    // Goroutine de movimento aleatória
     go func() {
         direcoes := []struct{ dx, dy int }{
             {1, 0}, {-1, 0}, {0, 1}, {0, -1},
@@ -47,7 +47,7 @@ func iniciarPatrulheiro(x, y int, jogo *Jogo) {
         }
     }()
 
-    // Goroutine processadora (dona das alterações no mapa para este patrulheiro)
+    // Goroutina processadora (dona das alterações no mapa para este patruleiro)
     go func() {
         for {
             mov := <-state.movChan

@@ -1,10 +1,18 @@
 // personagem.go - Funções para movimentação e ações do personagem
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
+
 
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
 func personagemMover(tecla rune, jogo *Jogo) {
+	if time.Now().Before(jogo.PresoAte) {
+        jogo.StatusMsg = "Você está preso na armadilha! Aguarde..."
+        return 
+    }
 	dx, dy := 0, 0
 	switch tecla {
 	case 'w': dy = -1 // Move para cima

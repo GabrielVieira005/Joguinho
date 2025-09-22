@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"os"
+	"time"
 )
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
@@ -20,6 +21,7 @@ type Jogo struct {
 	PosX, PosY      int          // posição atual do personagem
 	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg       string       // mensagem para a barra de status
+	PresoAte        time.Time
 }
 
 // Elementos visuais do jogo
@@ -31,6 +33,8 @@ var (
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
 	Patrulheiro = Elemento{'⚉', CorAmarelo, CorPadrao, true}
 	BuracoVisivel = Elemento{'●', CorVermelho, CorPadrao, false}
+	Armadilha     = Elemento{'^', CorAmarelo, CorVermelho, false}  
+    ArmadilhaUsada = Elemento{'×', CorCinzaEscuro, CorPadrao, false} 
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -67,14 +71,17 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			case Patrulheiro.simbolo://Modificação: iniciar patrulheiro
 				e=Vazio
 				iniciarPatrulheiro(x, y, jogo)
-			case '●': // ADICIONE ESTAS LINHAS - Buraco temporal
+			case '●': 
 				e = Vazio
 				iniciarBuraco(x, y, jogo)
-			}
-			linhaElems = append(linhaElems, e)
+			case '^': 
+			e = Vazio
+				iniciarArmadilha(x, y, jogo)
 		}
-		jogo.Mapa = append(jogo.Mapa, linhaElems)
-		y++
+		linhaElems = append(linhaElems, e)
+	}
+	jogo.Mapa = append(jogo.Mapa, linhaElems)
+	y++
 	}
 	if err := scanner.Err(); err != nil {
 		return err
