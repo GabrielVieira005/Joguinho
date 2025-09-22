@@ -6,19 +6,22 @@ import (
 	"time"
 )
 
-
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
 func personagemMover(tecla rune, jogo *Jogo) {
 	if time.Now().Before(jogo.PresoAte) {
-        jogo.StatusMsg = "Você está preso na armadilha! Aguarde..."
-        return 
-    }
+		jogo.StatusMsg = "Você está preso na armadilha! Aguarde..."
+		return
+	}
 	dx, dy := 0, 0
 	switch tecla {
-	case 'w': dy = -1 // Move para cima
-	case 'a': dx = -1 // Move para a esquerda
-	case 's': dy = 1  // Move para baixo
-	case 'd': dx = 1  // Move para a direita
+	case 'w':
+		dy = -1 // Move para cima
+	case 'a':
+		dx = -1 // Move para a esquerda
+	case 's':
+		dy = 1 // Move para baixo
+	case 'd':
+		dx = 1 // Move para a direita
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy

@@ -34,7 +34,7 @@ var (
 	Patrulheiro = Elemento{'⚉', CorAmarelo, CorPadrao, true}
 	BuracoVisivel = Elemento{'●', CorVermelho, CorPadrao, false}
 	Armadilha     = Elemento{'^', CorAmarelo, CorVermelho, false}  
-    ArmadilhaUsada = Elemento{'×', CorCinzaEscuro, CorPadrao, false} 
+    ArmadilhaUsada = Elemento{'×', CorCinzaEscuro, CorPadrao, false}//Teste
 )
 
 // Cria e retorna uma nova instância do jogo
